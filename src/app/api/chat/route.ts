@@ -31,6 +31,13 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: "No question provided" }, { status: 400 });
         }
 
+        if (question.length > MAX_QUESTION_LENGTH) {
+            return NextResponse.json(
+                { error: `Keep questions under ${MAX_QUESTION_LENGTH} characters.` },
+                { status: 400 }
+            );
+        }
+
 
         const embedResponse = await withRetry(() =>
             ai.models.embedContent({
