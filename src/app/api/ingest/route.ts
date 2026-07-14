@@ -45,6 +45,13 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: "No text provided" }, { status: 400 })
         }
 
+        if (text.length > MAX_DOCUMENT_LENGTH) {
+            return NextResponse.json(
+                { error: `That's too long to file in one go — keep it under ${MAX_DOCUMENT_LENGTH.toLocaleString()} characters.` },
+                { status: 400 }
+            );
+        }
+
         const chunks = chunkText(text);
 
         const embedResponse = await withRetry(() =>
