@@ -1,36 +1,112 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# DocChat — AI-Powered Document Archive
+
+Paste any document into the archive, then ask it anything. Answers are grounded strictly in your document, and every response shows the exact source chunks it was pulled from.
+
+Built with **Next.js 16**, **Google Gemini**, and **Supabase pgvector**.
+
+---
+
+## How it works
+
+1. **Ingest** — You paste text (up to ~3,000 words / 20,000 characters). It gets split into overlapping 100-word chunks, embedded via `gemini-embedding-001`, and stored in Supabase as 768-dimensional vectors.
+2. **Ask** — Your question is embedded the same way, then a cosine-similarity search finds the top 3 matching chunks. Those chunks are passed as context to `gemini-2.0-flash-lite`, which answers using only what's in the document.
+3. **Sources** — The UI shows each retrieved chunk alongside its similarity score so you can see exactly where the answer came from.
+
+---
+
+## Tech Stack
+
+| Layer | Technology |
+|---|---|
+| Framework | Next.js 16 (App Router) |
+| AI Embeddings | Google Gemini (`gemini-embedding-001`) |
+| AI Generation | Google Gemini (`gemini-2.0-flash-lite`) |
+| Vector DB | Supabase with `pgvector` |
+| Styling | Tailwind CSS v4 |
+
+---
 
 ## Getting Started
 
-First, run the development server:
+### 1. Prerequisites
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+- Node.js 18+
+- A [Supabase](https://supabase.com) project with the `pgvector` extension enabled
+- A Google AI API key (from [Google AI Studio](https://aistudio.google.com))
+
+### 2. Supabase Setup
+
+Run the following SQL in your Supabase SQL editor:
+
+```sql
+-- Enable pgvector
+create extension if not exists vector;
+
+-- Documents table
+create table documents (
+  id bigserial primary key,
+  content text not null,
+  embedding vector(768)
+);
+
+-- Similarity search function
+create or replace function match_documents(
+  query_embedding vector(768),
+  match_count int
+)
+returns table (content text, similarity float)
+language sql stable
+as $$
+  select content, 1 - (embedding <=> query_embedding) as similarity
+  from documents
+  order by embedding <=> query_embedding
+  limit match_count;
+$$;
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 3. Environment Variables
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Create a `.env` file in the project root:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```env
+GEMINI_API_KEY=your_google_ai_api_key
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+```
 
-## Learn More
+### 4. Install & Run
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+npm install
+npm run dev
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+---
 
-## Deploy on Vercel
+## Limits
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+| Constraint | Value |
+|---|---|
+| Max document length | 20,000 characters (~3,000 words) |
+| Max question length | 500 characters |
+| Chunks retrieved per query | 3 |
+| Chunk size | 100 words with 20-word overlap |
+| Embedding dimensions | 768 |
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+---
+
+## Project Structure
+
+```
+src/
+└── app/
+    ├── api/
+    │   ├── ingest/route.ts   # Chunks, embeds, and stores documents
+    │   └── chat/route.ts     # Embeds query, retrieves chunks, generates answer
+    ├── lib/
+    │   └── supabase.ts       # Supabase admin client
+    ├── page.tsx              # Main UI (archive panel + chat panel)
+    └── layout.tsx            # Root layout and metadata
+```

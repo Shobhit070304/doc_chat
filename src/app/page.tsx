@@ -10,6 +10,28 @@ const inter = Inter({ subsets: ['latin'], weight: ['400', '500', '600'], variabl
 type Source = { content: string; similarity: number };
 type Message = { role: 'user' | 'assistant'; content: string; sources?: Source[] };
 
+function parseMarkdown(text: string) {
+  return text.split('\n').map((line, i) => {
+    let cleanLine = line;
+    let isList = false;
+    if (line.trim().startsWith('- ')) {
+      cleanLine = line.trim().slice(2);
+      isList = true;
+    }
+    
+    let content: React.ReactNode = cleanLine;
+    if (cleanLine.includes('**')) {
+      content = cleanLine.split(/\*\*(.*?)\*\*/g).map((part, idx) => 
+        idx % 2 === 1 ? <strong key={idx} className="font-semibold text-white">{part}</strong> : part
+      );
+    }
+
+    return isList 
+      ? <li key={i} className="list-disc ml-5 mt-1">{content}</li> 
+      : <p key={i} className="mt-1 min-h-[1em]">{content}</p>;
+  });
+}
+
 export default function Home() {
   const [docText, setDocText] = useState('');
   const [ingesting, setIngesting] = useState(false);
@@ -39,8 +61,8 @@ export default function Home() {
       if (!res.ok) throw new Error(data.error || 'Ingestion failed');
       setIngestNote(`Filed ${data.chunksStored} card${data.chunksStored === 1 ? '' : 's'} into the archive.`);
       setDocText('');
-    } catch {
-      setIngestNote("Couldn't file that — check your connection and try again.");
+    } catch (err: any) {
+      setIngestNote(err?.message || "Couldn't file that — check your connection and try again.");
     } finally {
       setIngesting(false);
     }
@@ -61,10 +83,10 @@ export default function Home() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Chat failed');
       setMessages((prev) => [...prev, { role: 'assistant', content: data.answer, sources: data.sources }]);
-    } catch {
+    } catch (err: any) {
       setMessages((prev) => [
         ...prev,
-        { role: 'assistant', content: "Couldn't reach the archive. Check your connection and try again." },
+        { role: 'assistant', content: err?.message || "Couldn't reach the archive. Check your connection and try again." },
       ]);
     } finally {
       setAsking(false);
@@ -134,7 +156,11 @@ export default function Home() {
                         : 'max-w-[85%] text-sm text-[#EDE6D6]'
                     }
                   >
-                    <p>{m.content}</p>
+                    {m.role === 'assistant' ? (
+                      <div>{parseMarkdown(m.content)}</div>
+                    ) : (
+                      <p>{m.content}</p>
+                    )}
 
                     {m.sources && m.sources.length > 0 && (
                       <div className="mt-3 flex flex-wrap gap-2">
