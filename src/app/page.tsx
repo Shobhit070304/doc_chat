@@ -78,7 +78,7 @@ export default function Home() {
       <div className="mx-auto max-w-6xl px-6 py-10">
         <header className="mb-10">
           <p className="font-[family-name:var(--font-mono)] text-xs uppercase tracking-[0.25em] text-[#B8934A]">
-            Retrieval-Augmented Reading Room
+            AI-Powered Document Archive
           </p>
           <h1 className="mt-2 font-[family-name:var(--font-display)] text-4xl font-semibold text-[#F5F1E6] md:text-5xl">
             DocChat
